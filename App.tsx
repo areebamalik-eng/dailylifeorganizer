@@ -1,131 +1,109 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, { useContext, useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ActivityIndicator, View } from 'react-native';
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+// Contexts
+import { AuthProvider, AuthContext } from './src/contexts/AuthContext';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+// Notification
+import notifee, { EventType } from '@notifee/react-native';
+import { createNotificationChannel } from './src/utils/notificationHelper';
+import { navigationRef } from './src/navigations/NavigationService';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+// Screens
+import WelcomeScreen from './screens/WelcomeScreen';
+import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
+import AddTaskScreen from './screens/AddTaskScreen';
+import TaskListScreen from './screens/TaskListScreen';
+import EditTaskScreen from './screens/EditTaskScreen';
+import TrackExpense from './screens/TrackExpense';
+import HomeScreen from './screens/HomeScreen';
+import AddExpenseScreen from './screens/AddExpenseScreen';
+import EditExpenseScreen from './screens/EditExpenseScreen';
+import NotificationsScreen from './screens/NotificationScreen';
+import StopRingtoneScreen from './screens/StopRingtonScreen';// ✅ New
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
 
-  /*
-   * To keep the template simple and small we're adding padding to prevent view
-   * from rendering under the System UI.
-   * For bigger apps the recommendation is to use `react-native-safe-area-context`:
-   * https://github.com/AppAndFlow/react-native-safe-area-context
-   *
-   * You can read more about it here:
-   * https://github.com/react-native-community/discussions-and-proposals/discussions/827
-   */
-  const safePadding = '5%';
+
+// Stack Param List
+export type RootStackParamList = {
+  Welcome: undefined;
+  Login: undefined;
+  Register: undefined;
+  Home: undefined;
+  AddTask: undefined;
+  TaskList: undefined;
+  EditTask: { id: number; name: string; is_shared: boolean };
+  TrackExpense: undefined;
+  AddExpense: undefined;
+  EditExpense: undefined;
+  Notifications: undefined;
+  StopRingtone: undefined; // ✅ New screen
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// 🔐 Main navigation
+const MainNavigator = () => {
+  const { user, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#28a745" />
+      </View>
+    );
+  }
 
   return (
-    <View style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header/>
-        </View>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-            paddingHorizontal: safePadding,
-            paddingBottom: safePadding,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </View>
+    <Stack.Navigator>
+      {user ? (
+        <>
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="AddTask" component={AddTaskScreen} />
+          <Stack.Screen name="TaskList" component={TaskListScreen} />
+          <Stack.Screen name="EditTask" component={EditTaskScreen} />
+          <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
+          <Stack.Screen name="TrackExpense" component={TrackExpense} />
+          <Stack.Screen name="EditExpense" component={EditExpenseScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="StopRingtone" component={StopRingtoneScreen} /> {/* ✅ Add */}
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+        </>
+      )}
+    </Stack.Navigator>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+const App = () => {
+  useEffect(() => {
+    createNotificationChannel();
+
+    const unsubscribe = notifee.onForegroundEvent(({ type }) => {
+      if (type === EventType.PRESS) {
+        navigationRef.current?.navigate('StopRingtone');
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <AuthProvider>
+      <NavigationContainer ref={navigationRef}>
+        <MainNavigator />
+      </NavigationContainer>
+    </AuthProvider>
+  );
+};
 
 export default App;
